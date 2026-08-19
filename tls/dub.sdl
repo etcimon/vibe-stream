@@ -52,3 +52,13 @@ configuration "notls" {
 	subConfiguration "openssl" "library-manual-link"
 	subConfiguration "openssl-static" "none"
 }
+
+// Botan 3.13 TLS. `full` compiles `TLS_13` (not implied by `TLS` /
+// `standard`). DUB sets Have_botan; vibe.stream.tls then version=Botan.
+configuration "botan" {
+	dependency "botan" version="~>3.13.2"
+	subConfiguration "botan" "full"
+	subConfiguration "openssl" "library-manual-link"
+	subConfiguration "openssl-static" "none"
+	versions "VibeNoOpenSSL"
+}

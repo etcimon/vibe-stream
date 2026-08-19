@@ -31,8 +31,8 @@ import core.sync.mutex;
 import core.thread;
 
 version (VibeNoSSL) {}
-else version(Have_openssl) version = OpenSSL;
-else version(Have_botan) version = Botan;
+else version (Have_botan) version = Botan;
+else version (Have_openssl) version = OpenSSL;
 
 
 /// A simple TLS client
@@ -98,9 +98,12 @@ TLSContext createTLSContext(TLSContextKind kind, TLSVersion ver = TLSVersion.any
 		if (!gs_sslContextFactory)
 			setTLSContextFactory(&createOpenSSLContext);
 	} else version(Botan) {
+		// Honour `ver` on every call. latestTlsVersion() stays 1.2;
+		// TLS 1.3 is offered only when ver == tls1_3 (or the app sets
+		// BotanTLSContext.defaultProtocolOffer).
 		static TLSContext createBotanContext(TLSContextKind kind, TLSVersion ver) @safe {
 			import vibe.stream.botan;
-			return new BotanTLSContext(kind);
+			return new BotanTLSContext(kind, ver);
 		}
 		if (!gs_sslContextFactory)
 			setTLSContextFactory(&createBotanContext);

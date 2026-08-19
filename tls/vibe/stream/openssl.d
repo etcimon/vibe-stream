@@ -8,7 +8,8 @@
 module vibe.stream.openssl;
 
 version (VibeNoSSL) {}
-else version(Have_openssl):
+else version (VibeNoOpenSSL) {}
+else version (Have_openssl):
 
 import vibe.core.log;
 import vibe.core.net;
@@ -789,6 +790,12 @@ final class OpenSSLContext : TLSContext {
 			setDHParams();
 			setECDHCurve();
 			guessSessionIDContext();
+			enableSessionResume(true);
+		} else if (kind == TLSContextKind.serverSNI) {
+			guessSessionIDContext();
+			enableSessionResume(true);
+		} else {
+			enableSessionResume(false);
 		}
 
 		setCipherList();
@@ -1051,6 +1058,21 @@ final class OpenSSLContext : TLSContext {
 	{
 		string contextID = Socket.hostName;
 		SSL_CTX_set_session_id_context(m_ctx, cast(ubyte*)contextID.toStringz(), cast(uint)contextID.length);
+	}
+
+	/// OpenSSL already enables server session cache + RFC 5077 tickets
+	/// unless SSL_OP_NO_TICKET is set (we never set it). Make the cache
+	/// explicit so abbreviated handshakes match Botan session tickets.
+	private void enableSessionResume(bool server)
+		@trusted
+	{
+		enum SSL_CTRL_SET_SESS_CACHE_SIZE = 42;
+		enum SSL_CTRL_SET_SESS_CACHE_MODE = 44;
+		enum SSL_SESS_CACHE_CLIENT = 0x0001;
+		enum SSL_SESS_CACHE_SERVER = 0x0002;
+		auto mode = server ? SSL_SESS_CACHE_SERVER : SSL_SESS_CACHE_CLIENT;
+		SSL_CTX_ctrl(m_ctx, SSL_CTRL_SET_SESS_CACHE_MODE, mode, null);
+		SSL_CTX_ctrl(m_ctx, SSL_CTRL_SET_SESS_CACHE_SIZE, 1000, null);
 	}
 
 	/** Set params to use for DH cipher.
